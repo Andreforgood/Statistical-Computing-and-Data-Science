@@ -1,0 +1,100 @@
+Q1:
+import numpy as np
+import matplotlib.pyplot as plt
+
+# raw data：24 '1'，76 '0'
+data = np.array([1] * 24 + [0] * 76)
+n = len(data)
+B = 10000  # bootstrap # of trials
+
+# save bootstrap's p_hat
+bootstrap_phats = np.empty(B)
+
+for b in range(B):
+    sample = np.random.choice(data, size=n, replace=True) # new bootstrap sample, size == n
+    bootstrap_phats[b] = np.mean(sample)
+
+# 1 Bootstrap variance estimation
+bootstrap_variance = np.var(bootstrap_phats, ddof=1)
+print(f"Bootstrap estimate of Var(p̂ - p): {bootstrap_variance:.6f}") # var(p_hat-p) = var(p_hat)
+# ddof=0 → 使用 n 为分母 → 适用于 总体方差
+# ddof=1 → 使用 n - 1 为分母 → 适用于 样本方差
+
+# 2 Bootstrap CI（Percentile method）
+lower = np.percentile(bootstrap_phats, 2.5)
+upper = np.percentile(bootstrap_phats, 97.5)
+print(f"95% bootstrap confidence interval for p: ({lower:.3f}, {upper:.3f})")
+# can also use (2p_hat-upper,2p_hat-lower) to construct 
+
+# visualization
+plt.hist(bootstrap_phats, bins=30, density=True, alpha=0.7, color='skyblue')
+plt.axvline(lower, color='red', linestyle='--', label='2.5% percentile')
+plt.axvline(upper, color='red', linestyle='--', label='97.5% percentile')
+plt.title("Bootstrap distribution of p̂")
+plt.xlabel("p̂")
+plt.ylabel("Density")
+plt.legend()
+plt.show()
+
+Q2:
+import pandas as pd
+data = pd.read_table("/Users/dongwenou/Downloads/Statistical Computing/HW_chapter6_2_2025.txt", sep="\s+", engine='python') 
+# 用正则分隔符 \s+ 表示“任意空格”
+print(data.head())
+Y_input = data["Y"].to_numpy()  # 转换为一维数组
+X_input = data.drop(columns="Y")  # 除去原本的 Y 列
+X_input.insert(0, "Intercept", 1)  # 加上常数项
+X_input = X_input.to_numpy()  # transform to numpy array
+
+print(Y_input.shape, X_input.shape)
+
+def gradient(beta, X, Y):
+    X_beta = X @ beta
+    probs = np.exp(X_beta) / (1 + np.exp(X_beta))
+    return X.T @ (Y - probs) # matrix form, faster than summation.
+
+#（Hessian）
+def hessian(beta, X):
+    X_beta = X @ beta
+    probs = np.exp(X_beta) / (1 + np.exp(X_beta))
+    W = np.diag((probs * (1 - probs)))
+    return -X.T @ W @ X
+
+# Euclidean Norm
+def norm(vec):
+    return np.linalg.norm(vec)
+
+# Newton
+def newton_method(X, Y, tol=1e-5, max_iter=100, init_beta=None):
+    n_features = X.shape[1]
+    beta = np.zeros(n_features) if init_beta is None else init_beta.copy()
+    for _ in range(max_iter):
+        grad = gradient(beta, X, Y)
+        hess = hessian(beta, X)
+        delta = np.linalg.solve(hess, grad)  # solve H⁻¹ * grad
+        beta -= delta
+        if norm(delta) < tol:
+            break
+    return beta
+
+# simulation
+beta_hat = newton_method(X_input, Y_input)
+print("The estimated beta is:", beta_hat)
+
+# Here we used the parametric bootstrap method:
+B = 1000
+result = []
+for b in range(B):
+    boots_Y = Y_input
+    for i in range(len(Y_input)): # num_samples
+        p = 1 / (1 + np.exp(-X_input[i] @ beta_hat)) # bernoulli p=1
+        boots_Y[i] = 1 if np.random.uniform(0, 1) < p else 0
+    boots_beta = newton_method(X_input, boots_Y)
+    result.append(boots_beta)
+print(result[:2])
+
+for i in range(3):
+    boots_beta = [item[i] for item in result] # 取对应的参数估计
+    q_975 = np.quantile(boots_beta, 0.975)
+    q_025 = np.quantile(boots_beta, 0.025)
+    print("Confidence Interval for beta_{} is : {}".format(i, [2 * beta_hat[i] - q_975, 2 * beta_hat[i] - q_025]))
