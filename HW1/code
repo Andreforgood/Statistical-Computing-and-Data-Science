@@ -1,0 +1,53 @@
+import numpy as np
+
+def estimate_pi(m):
+    # Random points in the unit square (x, y)
+    # Function to estimate pi using Monte Carlo method
+    x = np.random.random(m) # Generating m floating points between [0,1)
+    y = np.random.random(m)
+    
+    # Check how many points fall inside the unit circle
+    inside_circle = (x**2 + y**2) <= 1
+    return 4 * np.sum(inside_circle) / m  # Estimate of one pi
+
+def calculate_rmse(m, repetitions=500):
+    # Function to calculate RMSE for given sample size and number of repetitions
+    pi_true = np.pi
+    estimates = np.array([estimate_pi(m) for _ in range(repetitions)])
+    # Calculate the Root Mean Squared Error (RMSE)
+    rmse = np.sqrt(np.mean((estimates - pi_true) ** 2))
+    return rmse
+
+
+# Sample sizes
+sample_sizes = [10000, 20000, 40000]
+
+# Repeat the experiment for each sample size and calculate RMSE
+rmse_results = {m: calculate_rmse(m) for m in sample_sizes}
+print(rmse_results)
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 定义两个点 theta1 和 theta2
+theta1 = np.array([1, 2])
+theta2 = np.array([4, 3])
+
+# 生成一系列 alpha 值
+alphas = np.linspace(0, 1, 100)
+
+# 对每个 alpha，计算 alpha*theta1 + (1-alpha)*theta2
+points = [alpha * theta1 + (1 - alpha) * theta2 for alpha in alphas]
+points = np.array(points)
+
+# 绘制线段
+plt.plot(points[:, 0], points[:, 1], '-o', label='Line Segment')
+
+# 绘制端点
+plt.scatter(theta1[0], theta1[1], color='red', zorder=5, label='theta1')
+plt.scatter(theta2[0], theta2[1], color='blue', zorder=5, label='theta2')
+
+plt.axis('equal')
+plt.legend()
+plt.title('Visualization of the line segment between two points')
+plt.show()
